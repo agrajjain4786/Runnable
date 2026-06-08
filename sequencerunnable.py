@@ -17,7 +17,6 @@ model = ChatMistralAI(model = 'mistral-small-2506')
 parser = StrOutputParser()
 
 # Step-by-Step manual flow
-
 # Format the prompt
 formatted_prompt = prompt.format_messages(topic = 'Machine Learning')
 
