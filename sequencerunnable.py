@@ -16,14 +16,9 @@ model = ChatMistralAI(model = 'mistral-small-2506')
 # 3. Output parser
 parser = StrOutputParser()
 
-# Step-by-Step manual flow
-# Format the prompt
-formatted_prompt = prompt.format_messages(topic = 'Machine Learning')
+# by using runnalbes
 
-# Call the model
-responce = model.invoke(formatted_prompt)
+chain = prompt | model | parser
 
-# Parse the Output manually
-final_output = parser.parse(responce.content)
-
-print(final_output)
+result = chain.invoke("GenAI")
+print(result)
