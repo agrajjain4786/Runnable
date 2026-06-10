@@ -4,7 +4,7 @@ load_dotenv()
 from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnableParallel
+from langchain_core.runnables import RunnableParallel, RunnableLambda
 # components
 # :- Model
 model = ChatMistralAI(model = 'mistral-small-2506')
@@ -26,9 +26,12 @@ topic = 'machine learning'
 # by using runnalbes
 
 chain = RunnableParallel({
-    "short" :short_prompt | model | parser ,
-    "detailed" : detail_prompt | model | parser
+    "short" :RunnableLambda(lambda x : x ['short']) |short_prompt | model | parser ,
+    "detailed" :RunnableLambda(lambda x : x ['detailed']) | detail_prompt | model | parser
 })
-result = chain.invoke({"topic" : topic})
+result = chain.invoke({
+    "short" : {'topic' : topic},
+    "detailed" :{'topic' : "oops in java and python"}
+})
 print(result['short'])
 print(result['detailed'])
