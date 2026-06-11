@@ -19,7 +19,16 @@ explain_prompt = ChatPromptTemplate.from_messages([
     ("human","explain the following code in simple words:\n{code}")
 ])
 
-seq = code_prompt | model | parser | explain_prompt | model | parser
+seq = code_prompt | model | parser 
 
-result = seq.invoke({"topic" : "write a code of palindrome in python"}) 
-print(result)
+seq2 = RunnableParallel(
+    {"code" : RunnablePassthrough(),
+     "explanation" : explain_prompt | model | parser
+    }
+)
+
+chain = seq | seq2
+result = chain.invoke({"topic" : "write a code on palindrome in python"})
+
+print(result['code'])
+print(result['explanation'])
