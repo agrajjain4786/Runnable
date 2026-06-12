@@ -18,15 +18,6 @@ model_with_tool = model.bind_tools([get_text_length])
 
 result = model_with_tool.invoke("Returns the number of character in a given text : 'hello how are you'")
 
-if result.tool_calls :
-    tool_call = result.tool_calls[0]
-tool_name = tool_call["name"]
-tool_args = tool_call["args"]
+print(result.tool_calls[0])
 
-tool_result = get_text_length.invoke(tool_args)
-
-final_response = model_with_tool.invoke(f"the length of text is {tool_result}")
-
-print(final_response.content)
-
-# print(tool_name)
+print(get_text_length.invoke({'name': 'get_text_length', 'args': {'text': 'hello how are you'}, 'id': 'tDR3nn9Tt', 'type': 'tool_call'}))
