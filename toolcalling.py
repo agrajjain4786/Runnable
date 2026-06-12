@@ -19,9 +19,9 @@ model = ChatMistralAI(model = 'mistral-small-2506')
 
 # 2. tool binding
 model_with_tool = model.bind_tools([get_text_length])
-
+prompt = input("You : ")
 messages = []
-query = HumanMessage("return the number of characters in the given text 'hello how are you '")
+query = HumanMessage(prompt)
 messages.append(query)
 
 result = model_with_tool.invoke(messages)
@@ -35,4 +35,4 @@ if result.tool_calls:
 
 # print(messages)
 result = model_with_tool.invoke(messages)
-print(result.content)
+print("BOT : ",result.content)
