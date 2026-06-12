@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from langchain_mistralai import ChatMistralAI
 from langchain.tools import tool
+from langchain_core.messages import HumanMessage
 
 from rich import print
 
@@ -11,13 +12,27 @@ def get_text_length(text : str) -> int:
     """Returns the number of character in a given text"""
     return len(text)
 
+tools = {
+    "get_text_length" : get_text_length
+}
 model = ChatMistralAI(model = 'mistral-small-2506')
 
 # 2. tool binding
 model_with_tool = model.bind_tools([get_text_length])
 
-result = model_with_tool.invoke("Returns the number of character in a given text : 'hello how are you'")
+messages = []
+query = HumanMessage("return the number of characters in the given text 'hello how are you '")
+messages.append(query)
 
-print(result.tool_calls[0])
+result = model_with_tool.invoke(messages)
 
-print(get_text_length.invoke({'name': 'get_text_length', 'args': {'text': 'hello how are you'}, 'id': 'tDR3nn9Tt', 'type': 'tool_call'}))
+messages.append(result)
+
+if result.tool_calls:
+    tool_name = result.tool_calls[0]["name"]
+    tool_messge = tools[tool_name].invoke(result.tool_calls[0])
+    messages.append(tool_messge)
+
+# print(messages)
+result = model_with_tool.invoke(messages)
+print(result.content)
