@@ -16,11 +16,17 @@ model = ChatMistralAI(model = 'mistral-small-2506')
 # 2. tool binding
 model_with_tool = model.bind_tools([get_text_length])
 
-result = model.invoke("Returns the number of character in a given text : 'hello how are you'")
+result = model_with_tool.invoke("Returns the number of character in a given text : 'hello how are you'")
 
-result2 = model_with_tool.invoke("Returns the number of character in a given text : 'hello how are you'")
-print(result)
-print()
-print()
-print()
-print(result2)
+if result.tool_calls :
+    tool_call = result.tool_calls[0]
+tool_name = tool_call["name"]
+tool_args = tool_call["args"]
+
+tool_result = get_text_length.invoke(tool_args)
+
+final_response = model_with_tool.invoke(f"the length of text is {tool_result}")
+
+print(final_response.content)
+
+# print(tool_name)
