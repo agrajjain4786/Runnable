@@ -57,3 +57,67 @@ def get_news(city: str)-> str:
     return f"Latest news in {city}: \n\n"+ "\n\n".join(news_list)
 
 print(get_news.invoke("AGRA"))
+
+llm = ChatMistralAI(model = 'mistral-small-2506')
+
+tools ={
+    "get_weather" : get_weather,
+    "get_news" : get_news
+}
+
+llm_with_tool = llm.bind_tools([get_weather,get_news])
+
+# Agent loop - Very Important
+
+messages = []
+
+print("City intelligence system")
+print("Type EXIT to quit")
+
+while True:
+    user_input = input("YOU : ")
+    if user_input.lower() == "exit":
+        break
+    messages.append(HumanMessage(content = user_input))
+
+    while True:
+        result = llm_with_tool.invoke(messages)
+
+        messages.append(result)
+
+        # if tool is requied
+        if result.tool_calls:
+            for tool_call in result.tool_calls:
+                tool_name = tool_call["name"]
+
+                # HUMAN IN THE LOOP
+                confirm = input(f"agent want to call {tool_name} approve (Y/N)")
+                if confirm.lower() == "n":
+                    print("tool call deniend and I cannot get the information ")
+                    break
+
+                # exicute tool
+                tool_result = tools[tool_name].invoke(tool_call)
+
+                messages.append(ToolMessage(
+                    content=tool_result,
+                    tool_call_id = tool_call["id"],
+                ))
+            continue
+        else:
+            print("\n✨ Final Answer:\n")
+            print(result.content)
+            print("\n" +  "="*50 + "\n")
+            break
+
+# User Input
+#     ↓
+# LLM (decide tool)
+#     ↓
+# Tool exicutes
+#     ↓
+# ToolMessage added
+#     ↓
+# LOOP AGAIN 🔁
+#     ↓
+# LLM (final answer)
