@@ -1,6 +1,12 @@
+# ============================================================
+# LOAD ENVIRONMENT VARIABLES
+# ============================================================
 from dotenv import load_dotenv
 load_dotenv()
 
+# ============================================================
+# IMPORT REQUIRED LIBRARIES
+# ============================================================
 import os
 import requests
 
@@ -9,30 +15,61 @@ from langchain.tools import tool
 from langchain_core.messages import HumanMessage, ToolMessage
 from tavily import TavilyClient
 from rich import print
+from langchain.agents import create_agent
 
-# Weather Tool
+
+
+# ============================================================
+# WEATHER TOOL
+# ============================================================
 @tool
-def get_weather(city : str) -> str :
-    """Get Current weather of a city"""
-    weather_api_key = os.getenv("OPENWEATHER_API_KEY")  
-    url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={weather_api_key}&units=metric"
+def get_weather(city: str) -> str:
+    """
+    Get current weather information for a given city.
+    """
+
+    # Fetch API key from environment variables
+    weather_api_key = os.getenv("OPENWEATHER_API_KEY")
+
+    # OpenWeather API endpoint
+    url = (
+        f"https://api.openweathermap.org/data/2.5/weather"
+        f"?q={city}&appid={weather_api_key}&units=metric"
+    )
+
+    # Make API request
     responce = requests.get(url)
     data = responce.json()
 
-    if str(data.get("cod")) != "200" :
-        return f"Error : {data.get("message", "Could not fetch weather")}"
+    # Handle invalid city or API errors
+    if str(data.get("cod")) != "200":
+        return f"Error : {data.get('message', 'Could not fetch weather')}"
 
+    # Extract weather details
     temp = data["main"]["temp"]
     desc = data["weather"][0]["description"]
+
     return f"Weather in {city} : {desc}, {temp}°C"
 
-# Tavily news tool
 
-tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+# ============================================================
+# TAVILY SEARCH CLIENT
+# ============================================================
+tavily_client = TavilyClient(
+    api_key=os.getenv("TAVILY_API_KEY")
+)
 
+
+# ============================================================
+# NEWS TOOL
+# ============================================================
 @tool
-def get_news(city: str)-> str:
-    """Get the latest news of the city"""
+def get_news(city: str) -> str:
+    """
+    Get the latest news related to a given city.
+    """
+
+    # Search latest news using Tavily
     responce = tavily_client.search(
         query=f"latest news of {city}",
         search_depth="basic",
@@ -40,83 +77,58 @@ def get_news(city: str)-> str:
     )
 
     results = responce.get("results", [])
+
+    # Handle no results found
     if not results:
         return f"No news found for {city}"
 
     news_list = []
 
-    for r in results :
+    # Format search results
+    for r in results:
         title = r.get("title", "No title")
         url = r.get("url", "")
         snippet = r.get("content", "")
 
         news_list.append(
-            f" - {title}\n  🔗 {url}\n 📝 {snippet[:100]}..."
+            f" - {title}\n"
+            f"  🔗 {url}\n"
+            f"  📝 {snippet[:100]}..."
         )
 
-    return f"Latest news in {city}: \n\n"+ "\n\n".join(news_list)
+    return (
+        f"Latest news in {city}:\n\n"
+        + "\n\n".join(news_list)
+    )
 
 
-llm = ChatMistralAI(model = 'mistral-small-2506')
+# ============================================================
+# INITIALIZE MISTRAL LLM
+# ============================================================
+llm = ChatMistralAI(
+    model="mistral-small-2506"
+)
 
-tools ={
-    "get_weather" : get_weather,
-    "get_news" : get_news
-}
+# ============================================================
+# INITIALIZE AGENT BY CREATE_AGENT
+# ============================================================
+agent = create_agent(
+    llm,
+    tools = [get_weather,get_news],
+    system_prompt="You are a helpful City Assistent.",
+)
 
-llm_with_tool = llm.bind_tools([get_weather,get_news])
-
-# Agent loop - Very Important
-
-messages = []
-
-print("City intelligence system")
-print("Type EXIT to quit")
+print("City Agent   |   Type exit to quit")
 
 while True:
-    user_input = input("YOU : ")
+    print("-"*50)
+    user_input = input("You → ")
+
     if user_input.lower() == "exit":
         break
-    messages.append(HumanMessage(content = user_input))
+    result = agent.invoke({
+        "messages" : [{"role" : "user", "content" : user_input}]   
+    })
+    print("BOT → ",result['messages'][-1].content)
 
-    while True:
-        result = llm_with_tool.invoke(messages)
-
-        messages.append(result)
-
-        # if tool is requied
-        if result.tool_calls:
-            for tool_call in result.tool_calls:
-                tool_name = tool_call["name"]
-
-                # HUMAN IN THE LOOP
-                confirm = input(f"agent want to call {tool_name} approve (Y/N)")
-                if confirm.lower() == "n":
-                    print("tool call deniend and I cannot get the information ")
-                    break
-
-                # exicute tool
-                tool_result = tools[tool_name].invoke(tool_call)
-
-                messages.append(ToolMessage(
-                    content=tool_result,
-                    tool_call_id = tool_call["id"],
-                ))
-            continue
-        else:
-            print("\n✨ Final Answer:\n")
-            print(result.content)
-            print("\n" +  "="*50 + "\n")
-            break
-
-# User Input
-#     ↓
-# LLM (decide tool)
-#     ↓
-# Tool exicutes
-#     ↓
-# ToolMessage added
-#     ↓
-# LOOP AGAIN 🔁
-#     ↓
-# LLM (final answer)
+    print("-"*50)
