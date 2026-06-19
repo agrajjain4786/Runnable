@@ -16,6 +16,9 @@ from langchain_core.messages import HumanMessage, ToolMessage
 from tavily import TavilyClient
 from rich import print
 from langchain.agents import create_agent
+from langchain.agents.middleware import wrap_tool_call
+from langchain.tools.tool_node import ToolCallRequest
+from collections.abc import Callable
 
 
 
@@ -101,13 +104,26 @@ def get_news(city: str) -> str:
         + "\n\n".join(news_list)
     )
 
-
 # ============================================================
 # INITIALIZE MISTRAL LLM
 # ============================================================
 llm = ChatMistralAI(
     model="mistral-small-2506"
 )
+
+
+@wrap_tool_call
+def human_approval(request,handler):
+    """Ask for human approval before every tool call."""
+    tool_name = request.tool_call["name"]
+    confirm = input(f"Agent wants to call '{tool_name}'. Approve? (Y/N) → ")
+
+    if confirm.lower() != "y":
+        return ToolMessage(
+            content = "Tool call denied by user.",
+            tool_call_id = request.tool_call["id"]
+        )
+    return handler(request)
 
 # ============================================================
 # INITIALIZE AGENT BY CREATE_AGENT
@@ -116,6 +132,7 @@ agent = create_agent(
     llm,
     tools = [get_weather,get_news],
     system_prompt="You are a helpful City Assistent.",
+    middleware=[human_approval],
 )
 
 print("City Agent   |   Type exit to quit")
@@ -129,6 +146,6 @@ while True:
     result = agent.invoke({
         "messages" : [{"role" : "user", "content" : user_input}]   
     })
-    print("BOT → ",result['messages'][-1].content)
+    print("Bot → ",result['messages'][-1].content)
 
     print("-"*50)
